@@ -409,8 +409,8 @@ def run_pipeline(dataset_name: str):
     X_sample = X.iloc[sample_idx]
     y_sample = y.iloc[sample_idx]
 
-    selector.fit(X_sample, y_sample)
-    X_sel = selector.transform(X)
+    selector.fit(X_sample.to_numpy(), y_sample.to_numpy())
+    X_sel = selector.transform(X.to_numpy())
     selected_features = [FEATURES[i] for i in selector.get_support(indices=True)]
 
     scaler = StandardScaler()
