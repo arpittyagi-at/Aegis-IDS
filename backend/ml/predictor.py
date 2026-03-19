@@ -120,17 +120,21 @@ class Predictor:
 
     def predict(self, feature_dict: dict) -> dict:
         start = time.perf_counter()
+        import warnings
+        import pandas as pd
 
         # Build full feature vector in the same order as training
-        vec = [float(feature_dict.get(f, 0.0) or 0.0) for f in self.all_feature_names]
-        arr = np.array(vec, dtype=float).reshape(1, -1)
+        vec = {f: float(feature_dict.get(f, 0.0) or 0.0) for f in self.all_feature_names}
+        arr_df = pd.DataFrame([vec], columns=self.all_feature_names)
 
         # sanitize
-        arr = np.nan_to_num(arr, nan=0.0, posinf=0.0, neginf=0.0)
+        arr_df = arr_df.replace([float("inf"), float("-inf")], 0.0).fillna(0.0)
 
         # select then scale (same order as training)
-        selected = self.selector.transform(arr)
-        scaled = self.scaler.transform(selected)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            selected = self.selector.transform(arr_df)
+            scaled = self.scaler.transform(selected)
 
         prob = float(self.model.predict_proba(scaled)[0][1])
         self._prob_history.append(prob)

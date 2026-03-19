@@ -154,40 +154,46 @@ async def websocket_stream(ws: WebSocket):
     await ws.accept()
     try:
         while True:
-            sample = generator.next_sample(traffic_mode)
-            predictor = predictors.get(active_dataset)
-            if not predictor:
-                await asyncio.sleep(0.5)
-                continue
+            try:
+                sample = generator.next_sample(traffic_mode)
+                predictor = predictors.get(active_dataset)
+                if not predictor:
+                    await asyncio.sleep(0.5)
+                    continue
 
-            result = predictor.predict(sample)
+                result = predictor.predict(sample)
 
-            shap_vals: Dict[str, Any] = {}
-            if result.get("is_attack"):
-                try:
-                    shap_vals = explain_prediction(predictor, sample)
-                except Exception:
-                    shap_vals = {}
+                shap_vals: Dict[str, Any] = {}
+                if result.get("is_attack"):
+                    try:
+                        shap_vals = explain_prediction(predictor, sample)
+                    except Exception:
+                        shap_vals = {}
 
-            record = {**result, "timestamp": time.time(), "shap_vals": shap_vals}
-            insert(record)
+                record = {**result, "timestamp": time.time(), "shap_vals": shap_vals}
+                insert(record)
 
-            payload = {
-                "timestamp": record["timestamp"],
-                "is_attack": result["is_attack"],
-                "probability": result["probability"],
-                "threshold": result["threshold"],
-                "severity": result["severity"],
-                "dataset": result["dataset"],
-                "latency_ms": result["latency_ms"],
-                "shap_vals": shap_vals,
-                "mode": traffic_mode,
-                "pps": generator.pps(traffic_mode),
-            }
-            await ws.send_text(json.dumps(payload))
+                payload = {
+                    "timestamp": float(record["timestamp"]),
+                    "is_attack": bool(result["is_attack"]),
+                    "probability": float(result["probability"]),
+                    "threshold": float(result["threshold"]),
+                    "severity": str(result["severity"]),
+                    "dataset": str(result["dataset"]),
+                    "latency_ms": float(result["latency_ms"]),
+                    "shap_vals": shap_vals,
+                    "mode": traffic_mode,
+                    "pps": int(generator.pps(traffic_mode)),
+                }
+                await ws.send_text(json.dumps(payload))
+            except WebSocketDisconnect:
+                raise
+            except Exception as e:
+                print(f"Stream loop error (continuing): {e}")
             await asyncio.sleep(0.5)
     except WebSocketDisconnect:
         print("Client disconnected")
+
 
 
 if __name__ == "__main__":
