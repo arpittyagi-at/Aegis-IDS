@@ -3,7 +3,11 @@ import json
 import os
 import sys
 import time
+import warnings
 from typing import Any, Dict, Optional
+
+# Suppress sklearn feature-name warnings that crash the async WS event loop
+warnings.filterwarnings("ignore", message="X does not have valid feature names")
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware

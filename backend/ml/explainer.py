@@ -35,13 +35,19 @@ def _build_feature_vector(predictor, feature_dict: dict) -> np.ndarray:
 
 def explain_prediction(predictor, feature_dict: dict) -> Dict[str, Dict[str, Any]]:
     """Return the top-5 feature attributions for a single prediction."""
+    import warnings
+    import pandas as pd
 
     arr, features = _build_feature_vector(predictor, feature_dict)
 
     # Apply selector and scaler in the same order as predictor.predict()
+    # Use DataFrame so sklearn doesn't complain about feature names
+    arr_df = pd.DataFrame(arr, columns=features)
     try:
-        selected = predictor.selector.transform(arr)
-        scaled = predictor.scaler.transform(selected)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            selected = predictor.selector.transform(arr_df)
+            scaled = predictor.scaler.transform(selected)
     except Exception as e:
         raise RuntimeError("Failed to apply selector/scaler on input") from e
 
