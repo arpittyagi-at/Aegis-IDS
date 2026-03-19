@@ -4,7 +4,8 @@ import sqlite3
 import time
 from pathlib import Path
 
-DB_PATH = Path("backend") / "data" / "alerts.db"
+# Always resolve relative to this file so the DB path is stable regardless of cwd
+DB_PATH = Path(__file__).parent / "alerts.db"
 
 
 def _get_conn():

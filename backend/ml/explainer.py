@@ -62,12 +62,25 @@ def explain_prediction(predictor, feature_dict: dict) -> Dict[str, Dict[str, Any
             _SHAP_EXPLAINERS[predictor.dataset] = explainer
 
         shap_values = explainer.shap_values(scaled)
-        if isinstance(shap_values, list) and len(shap_values) > 1:
-            shap_arr = np.array(shap_values[1])
-        else:
-            shap_arr = np.array(shap_values)
 
-        # Ensure we have single-sample format
+        # shap_values can be:
+        #   - list of 2 arrays (one per class): shape [n_classes][n_samples, n_features]
+        #   - single ndarray of shape (n_samples, n_features, n_classes)  (newer shap)
+        #   - single ndarray of shape (n_samples, n_features)  (binary shorthand)
+        # We always want class 1 = attack
+        if isinstance(shap_values, list):
+            # Classic format: list[0] = class 0, list[1] = class 1
+            shap_arr = np.array(shap_values[-1])   # last entry = attack class
+        else:
+            sv = np.array(shap_values)
+            if sv.ndim == 3:
+                # shape (n_samples, n_features, n_classes)
+                shap_arr = sv[:, :, 1]
+            else:
+                # shape (n_samples, n_features) — already attack direction for binary RF
+                shap_arr = sv
+
+        # Ensure single-sample row
         shap_row = shap_arr[0] if shap_arr.ndim == 2 else shap_arr
 
         # Get top 5 features by abs(shap)
