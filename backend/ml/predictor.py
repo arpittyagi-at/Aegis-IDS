@@ -132,7 +132,7 @@ class Predictor:
         selected = self.selector.transform(arr)
         scaled = self.scaler.transform(selected)
 
-        prob = float(self.model.predict_proba(selected)[0][1])
+        prob = float(self.model.predict_proba(scaled)[0][1])
         self._prob_history.append(prob)
 
         threshold = self._get_threshold()
