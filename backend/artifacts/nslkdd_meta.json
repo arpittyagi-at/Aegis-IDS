@@ -1,0 +1,56 @@
+{
+  "dataset": "nslkdd",
+  "selected_features": [
+    "flow_duration",
+    "fwd_pkt_len_max",
+    "bwd_pkt_len_max",
+    "flow_bytes_per_sec",
+    "flow_pkts_per_sec",
+    "flow_iat_mean",
+    "fwd_iat_total",
+    "bwd_iat_total",
+    "fwd_packets_per_sec",
+    "bwd_packets_per_sec",
+    "max_packet_length",
+    "syn_flag_count",
+    "down_up_ratio",
+    "init_win_bytes_forward",
+    "active_mean",
+    "active_max",
+    "idle_mean",
+    "idle_std",
+    "idle_max",
+    "idle_min"
+  ],
+  "n_features": 20,
+  "best_model": "random_forest",
+  "metrics": [
+    {
+      "model": "random_forest",
+      "accuracy": 100.0,
+      "f1": 100.0,
+      "precision": 100.0,
+      "recall": 100.0,
+      "auc": 100.0,
+      "fpr": 0.0
+    },
+    {
+      "model": "gradient_boosting",
+      "accuracy": 100.0,
+      "f1": 100.0,
+      "precision": 100.0,
+      "recall": 100.0,
+      "auc": 100.0,
+      "fpr": 0.0
+    },
+    {
+      "model": "decision_tree",
+      "accuracy": 100.0,
+      "f1": 100.0,
+      "precision": 100.0,
+      "recall": 100.0,
+      "auc": 100.0,
+      "fpr": 0.0
+    }
+  ]
+}
