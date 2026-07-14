@@ -1,11 +1,13 @@
 <!-- ANIMATED HEADER BANNER -->
 <div align="center">
 
-<img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=700&size=32&pause=1000&color=00BCD4&center=true&vCenter=true&width=700&lines=AEGIS+IDS;Adaptive+Explainable+Intrusion+Detection;Real-Time+%7C+SHAP+%7C+ML-Powered" alt="Typing SVG" />
+<img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=700&size=24&pause=1000&color=00BCD4&center=true&vCenter=true&width=1000&lines=AEGIS+IDS;Adaptive+Explainable+Generalized+Intrusion+Detection+System;Real-Time+%7C+SHAP+%7C+ML-Powered" alt="Typing SVG" width="100%" />
 
 <br/>
 
-<h1>🛡 AEGIS - Adaptive Explainable Generalized Intrusion Detection System</h1>
+<h1>🛡 AEGIS IDS</h1>
+
+<h3>Adaptive Explainable Generalized Intrusion Detection System</h3>
 
 <p><em>Detecting What Others Miss. Explaining What Others Hide.</em></p>
 
@@ -354,12 +356,12 @@ Consistent with DDoS SYN flood attack pattern.
 <div align="center">
 <table>
 <tr>
-<td><img src="docs/screenshots/dashboard.png" width="430" alt="SOC Dashboard"/><br/><sub><b>SOC Dashboard - Live DDoS Detection</b></sub></td>
-<td><img src="docs/screenshots/shap.png" width="430" alt="SHAP Panel"/><br/><sub><b>SHAP Explainability Panel</b></sub></td>
+<td><img src="docs/screenshots/dashboard-overview.png" width="460" alt="SOC Dashboard Overview"/><br/><sub><b>Executive SOC Dashboard - live detection KPIs, threshold, and traffic trend</b></sub></td>
+<td><img src="docs/screenshots/critical-alert-feed.png" width="460" alt="Critical Alert Feed"/><br/><sub><b>Critical Alert Feed - severity-ranked incident queue for analyst triage</b></sub></td>
 </tr>
 <tr>
-<td><img src="docs/screenshots/alerts.png" width="430" alt="Alert Feed"/><br/><sub><b>Real-Time Alert Feed</b></sub></td>
-<td><img src="docs/screenshots/normal.png" width="430" alt="Normal Mode"/><br/><sub><b>Normal Traffic Baseline</b></sub></td>
+<td><img src="docs/screenshots/shap-explanation.png" width="460" alt="SHAP Explanation Panel"/><br/><sub><b>SHAP Explainability Panel - top feature contributions for a selected alert</b></sub></td>
+<td><img src="docs/screenshots/demo-controls.png" width="460" alt="AEGIS Demo Controls"/><br/><sub><b>Demo Control Center - data source, attack mode, and dataset switching</b></sub></td>
 </tr>
 </table>
 </div>
