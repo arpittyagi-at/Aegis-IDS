@@ -23,14 +23,15 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [mode, setMode] = useState("online");
-  const [dataset, setDataset] = useState("unsw-nb15");
+  const [dataset, setDataset] = useState("ciciot");
+  const [dataSource, setDataSource] = useState("generated");  // "generated" or "real"
   const [metrics, setMetrics] = useState(null);
   const [selectedAlert, setSelectedAlert] = useState(null);
 
   const API_BASE = "http://localhost:8000";
   const WS_URL = "ws://localhost:8000/stream";
 
-  // Fetch stats on load
+  // Fetch stats and data source on load
   useEffect(() => {
     const fetchStats = async () => {
       try {
@@ -43,8 +44,20 @@ function App() {
         setLoading(false);
       }
     };
+    const fetchDataSource = async () => {
+      try {
+        const response = await axios.get(`${API_BASE}/data-source`);
+        setDataSource(response.data.data_source);
+      } catch (err) {
+        console.error("Failed to fetch data source");
+      }
+    };
     fetchStats();
-    const interval = setInterval(fetchStats, 3000); // ← poll every 3 seconds
+    fetchDataSource();
+    const interval = setInterval(() => {
+      fetchStats();
+      fetchDataSource();
+    }, 3000); // ← poll every 3 seconds
     return () => clearInterval(interval);
   }, []);
 
@@ -63,7 +76,7 @@ function App() {
         // Normalize data fields to match chart expectations
         const normalized = {
           ...data,
-          index: Date.now(),
+          index: data.timestamp,  // Already in milliseconds from backend
           prediction: data.probability,
           alert: data.is_attack,
         };
@@ -90,7 +103,7 @@ function App() {
   useEffect(() => {
     const fetchMetrics = async () => {
       try {
-        const response = await axios.get(`${API_BASE}/metrics`);
+        const response = await axios.get(`${API_BASE}/metrics?dataset=${dataset}`);
         setMetrics(response.data);
       } catch (err) {
         console.error("Failed to fetch metrics");
@@ -99,7 +112,7 @@ function App() {
     fetchMetrics();
     const interval = setInterval(fetchMetrics, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [dataset]);
 
   const handleModeChange = async (newMode) => {
     try {
@@ -120,6 +133,19 @@ function App() {
     }
   };
 
+  const handleDataSourceChange = async (newSource) => {
+    try {
+      await axios.post(`${API_BASE}/data-source`, {
+        source: newSource,
+      });
+      setDataSource(newSource);
+      // Clear stream data when switching sources for fresh view
+      setStreamData([]);
+    } catch (err) {
+      setError("Failed to change data source");
+    }
+  };
+
   if (loading) {
     return <div className="loading">Loading AEGIS IDS Dashboard...</div>;
   }
@@ -129,13 +155,17 @@ function App() {
   const alertsRaised = stats?.total_attacks ?? 0;
   const detectionRate = totalEvents ? (alertsRaised / totalEvents) * 100 : 0;
 
+  const getShapColor = (value) => (value < 0 ? "#ff5f5f" : "#19e68c");
+
   return (
     <div className="app">
       <div className="header">
         <h1>🛡️ AEGIS IDS Dashboard</h1>
         <p>
-          Adaptive Engagement Guard for Intrusion Detection with SHAP
-          Explanations
+          Adaptive Engagement Guard for Intrusion Detection with SHAP Explanations
+        </p>
+        <p style={{ fontSize: "12px", color: "#888", marginTop: "4px", letterSpacing: "0.05em" }}>
+          Built by <span style={{ color: "#00d4ff", fontWeight: "bold" }}>Arpit Tyagi</span>
         </p>
         <div style={{ marginTop: "10px" }}>
           <span
@@ -185,7 +215,13 @@ function App() {
                 strokeDasharray="3 3"
                 stroke="rgba(255,255,255,0.1)"
               />
-              <XAxis dataKey="index" stroke="#cccccc" />
+              <XAxis
+                dataKey="index"
+                stroke="#cccccc"
+                tickFormatter={(v) => new Date(v).toLocaleTimeString()}
+                interval="preserveStartEnd"
+                tick={{ fontSize: 10 }}
+              />
               <YAxis stroke="#cccccc" />
               <Tooltip
                 contentStyle={{
@@ -274,7 +310,7 @@ function App() {
               onClick={() => setSelectedAlert(alert)}
               style={{ cursor: "pointer" }}
             >
-              <strong>Alert #{alerts.length - idx}</strong> | Severity:{" "}
+              <strong>Alert #{idx + 1}</strong> | Severity:{" "}
               {alert.severity?.toUpperCase() || "HIGH"}
               <br />
               <small>
@@ -330,10 +366,7 @@ function App() {
                         </span>
                         <span
                           style={{
-                            color:
-                              info.direction === "attack"
-                                ? "#ff6b6b"
-                                : "#00ff88",
+                            color: getShapColor(info.shap),
                             fontWeight: "bold",
                           }}
                         >
@@ -353,10 +386,7 @@ function App() {
                             width: `${Math.abs(info.shap) * 300}%`,
                             maxWidth: "100%",
                             height: "100%",
-                            background:
-                              info.direction === "attack"
-                                ? "#ff6b6b"
-                                : "#00ff88",
+                            background: getShapColor(info.shap),
                             borderRadius: 3,
                           }}
                         />
@@ -366,6 +396,54 @@ function App() {
                       </small>
                     </div>
                   ))}
+                {/* Plain-English interpretation of the top SHAP feature */}
+                {selectedAlert.shap_vals && Object.keys(selectedAlert.shap_vals).length > 0 && (() => {
+                  const topFeatureName = Object.keys(selectedAlert.shap_vals)[0];
+                  const topFeatureInfo = Object.values(selectedAlert.shap_vals)[0];
+                  const rawVal = topFeatureInfo?.value;
+                  const shapVal = topFeatureInfo?.shap;
+                  const direction = topFeatureInfo?.direction;
+                  const isAttack = direction === "attack";
+                  return (
+                    <div style={{
+                      marginTop: 16,
+                      padding: '12px 14px',
+                      background: 'rgba(255,255,255,0.05)',
+                      borderRadius: 6,
+                      border: '1px solid rgba(255,107,107,0.3)',
+                      fontSize: 13,
+                      color: '#cccccc',
+                      lineHeight: 1.6,
+                    }}>
+                      <strong style={{ color: '#00ff88' }}>📋 Interpretation: </strong>
+                      The top signal was{' '}
+                      <span style={{ color: '#00d4ff', fontFamily: 'monospace' }}>
+                        {topFeatureName.replace(/_/g, ' ')}
+                      </span>
+                      {rawVal !== undefined && rawVal !== null ? (
+                        <> with a raw value of{' '}
+                          <span style={{ color: '#ffaa44', fontWeight: 'bold' }}>{rawVal}</span>
+                        </>
+                      ) : null}
+                      {' '}(SHAP:{' '}
+                      <span style={{ color: getShapColor(shapVal), fontWeight: 'bold' }}>
+                        {shapVal >= 0 ? '+' : ''}{shapVal?.toFixed(4)}
+                      </span>
+                      ) — this feature strongly pushed the model toward an{' '}
+                      <span style={{ color: '#ff6b6b', fontWeight: 'bold' }}>
+                        {isAttack ? 'ATTACK' : 'NORMAL'}
+                      </span>{' '}decision.
+                      {' '}Model confidence:{' '}
+                      <span style={{ color: '#ff6b6b', fontWeight: 'bold' }}>
+                        {(selectedAlert.probability * 100).toFixed(1)}%
+                      </span>
+                      {' '}— above adaptive threshold of{' '}
+                      <span style={{ color: '#ffaa44' }}>
+                        {selectedAlert.threshold?.toFixed(3)}
+                      </span>.
+                    </div>
+                  );
+                })()}
               </>
             ) : (
               <p style={{ color: "#cccccc" }}>
@@ -378,25 +456,53 @@ function App() {
 
       <div className="controls-panel">
         <div className="control-group">
-          <label>Traffic Mode:</label>
+          <label>Data Source:</label>
+          <div style={{ display: "flex", gap: "10px", marginTop: "5px" }}>
+            <button
+              onClick={() => handleDataSourceChange("generated")}
+              style={{ background: dataSource === "generated" ? "#00d4ff" : "#333", color: dataSource === "generated" ? "#000" : "#fff" }}
+            >
+              🤖 GENERATED ATTACKS
+            </button>
+            <button
+              onClick={() => handleDataSourceChange("real")}
+              style={{ background: dataSource === "real" ? "#00d4ff" : "#333", color: dataSource === "real" ? "#000" : "#fff" }}
+            >
+              📊 REAL DATASETS
+            </button>
+          </div>
+        </div>
+
+        <div className="control-group">
+          <label>Traffic Mode (Generated Only):</label>
           <div style={{ display: "flex", gap: "10px", marginTop: "5px" }}>
             <button
               onClick={() => handleModeChange("normal")}
-              style={{ background: mode === "normal" ? "#00ff88" : "#333", color: mode === "normal" ? "#000" : "#fff" }}
+              style={{ background: mode === "normal" ? "#00ff88" : "#333", color: mode === "normal" ? "#000" : "#fff", opacity: dataSource === "generated" ? 1 : 0.5 }}
+              disabled={dataSource === "real"}
             >
               🟢 NORMAL
             </button>
             <button
               onClick={() => handleModeChange("ddos")}
-              style={{ background: mode === "ddos" ? "#ff6b6b" : "#333", color: mode === "ddos" ? "#fff" : "#fff" }}
+              style={{ background: mode === "ddos" ? "#ff6b6b" : "#333", color: mode === "ddos" ? "#fff" : "#fff", opacity: dataSource === "generated" ? 1 : 0.5 }}
+              disabled={dataSource === "real"}
             >
               🔴 DDOS
             </button>
             <button
               onClick={() => handleModeChange("portscan")}
-              style={{ background: mode === "portscan" ? "#ffaa44" : "#333", color: mode === "portscan" ? "#000" : "#fff" }}
+              style={{ background: mode === "portscan" ? "#ffaa44" : "#333", color: mode === "portscan" ? "#000" : "#fff", opacity: dataSource === "generated" ? 1 : 0.5 }}
+              disabled={dataSource === "real"}
             >
               🟠 PORTSCAN
+            </button>
+            <button
+              onClick={() => handleModeChange("mixed")}
+              style={{ background: mode === "mixed" ? "#aa44ff" : "#333", color: "#fff", opacity: dataSource === "generated" ? 1 : 0.5 }}
+              disabled={dataSource === "real"}
+            >
+              🟣 MIXED
             </button>
           </div>
         </div>
@@ -406,19 +512,39 @@ function App() {
           <select
             id="dataset-select"
             value={dataset}
-            onChange={(e) => {
-              setDataset(e.target.value);
-              axios.post(`${API_BASE}/mode`, { mode, dataset: e.target.value });
+            onChange={(e) => setDataset(e.target.value)}
+            style={{
+              background: "rgba(0,0,0,0.4)",
+              color: "#00d4ff",
+              border: "1px solid #00d4ff",
+              padding: "8px 12px",
+              borderRadius: 5,
+              fontSize: 13,
             }}
           >
-            <option value="ciciot">CICIoT 2023</option>
-            <option value="nslkdd">NSL-KDD</option>
+            <option value="ciciot">CICIoT 2023 (IoT)</option>
+            <option value="nslkdd">NSL-KDD (Classic)</option>
+            <option value="unswnb15">UNSW-NB15 (Mixed)</option>
+            <option value="cicids2017">CIC-IDS 2017 (Enterprise)</option>
           </select>
         </div>
 
         <button onClick={() => window.location.reload()} style={{ marginTop: "15px" }}>
           🔄 Refresh Dashboard
         </button>
+      </div>
+
+      <div style={{
+        textAlign: "center",
+        padding: "20px",
+        color: "#555",
+        fontSize: "12px",
+        borderTop: "1px solid rgba(255,255,255,0.07)",
+        marginTop: "20px",
+      }}>
+        AEGIS IDS &mdash; Designed &amp; Built by{" "}
+        <span style={{ color: "#00d4ff", fontWeight: "600" }}>Arpit Tyagi</span>
+        {" "}| &copy; {new Date().getFullYear()}
       </div>
     </div>
   );

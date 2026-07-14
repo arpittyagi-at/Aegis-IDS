@@ -1,0 +1,56 @@
+{
+  "dataset": "unswnb15",
+  "selected_features": [
+    "f0",
+    "f2",
+    "f5",
+    "f6",
+    "f7",
+    "f8",
+    "f9",
+    "f10",
+    "f14",
+    "f15",
+    "f17",
+    "f22",
+    "f23",
+    "f30",
+    "f31",
+    "f32",
+    "f33",
+    "f34",
+    "f36",
+    "f47"
+  ],
+  "n_features": 20,
+  "best_model": "random_forest",
+  "metrics": [
+    {
+      "model": "random_forest",
+      "accuracy": 100.0,
+      "f1": 100.0,
+      "precision": 100.0,
+      "recall": 100.0,
+      "auc": 100.0,
+      "fpr": 0.0
+    },
+    {
+      "model": "gradient_boosting",
+      "accuracy": 100.0,
+      "f1": 100.0,
+      "precision": 100.0,
+      "recall": 100.0,
+      "auc": 100.0,
+      "fpr": 0.0
+    },
+    {
+      "model": "decision_tree",
+      "accuracy": 100.0,
+      "f1": 100.0,
+      "precision": 100.0,
+      "recall": 100.0,
+      "auc": 100.0,
+      "fpr": 0.0
+    }
+  ]
+}

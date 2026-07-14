@@ -17,401 +17,259 @@ from sklearn.metrics import (
     confusion_matrix,
 )
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.tree import DecisionTreeClassifier
 
 
-FEATURES = [
-    "flow_duration",
-    "total_fwd_packets",
-    "total_bwd_packets",
-    "total_length_fwd_pkts",
-    "total_length_bwd_pkts",
-    "fwd_pkt_len_max",
-    "fwd_pkt_len_min",
-    "fwd_pkt_len_mean",
-    "fwd_pkt_len_std",
-    "bwd_pkt_len_max",
-    "bwd_pkt_len_min",
-    "bwd_pkt_len_mean",
-    "bwd_pkt_len_std",
-    "flow_bytes_per_sec",
-    "flow_pkts_per_sec",
-    "flow_iat_mean",
-    "flow_iat_std",
-    "flow_iat_max",
-    "flow_iat_min",
-    "fwd_iat_total",
-    "fwd_iat_mean",
-    "fwd_iat_std",
-    "fwd_iat_max",
-    "fwd_iat_min",
-    "bwd_iat_total",
-    "bwd_iat_mean",
-    "bwd_iat_std",
-    "bwd_iat_max",
-    "fwd_psh_flags",
-    "bwd_psh_flags",
-    "fwd_urg_flags",
-    "bwd_urg_flags",
-    "fwd_header_length",
-    "bwd_header_length",
-    "fwd_packets_per_sec",
-    "bwd_packets_per_sec",
-    "min_packet_length",
-    "max_packet_length",
-    "packet_length_mean",
-    "packet_length_std",
-    "packet_length_variance",
-    "fin_flag_count",
-    "syn_flag_count",
-    "rst_flag_count",
-    "psh_flag_count",
-    "ack_flag_count",
-    "urg_flag_count",
-    "down_up_ratio",
-    "average_packet_size",
-    "avg_fwd_segment_size",
-    "avg_bwd_segment_size",
-    "init_win_bytes_forward",
-    "init_win_bytes_backward",
-    "act_data_pkt_fwd",
-    "min_seg_size_forward",
-    "active_mean",
-    "active_std",
-    "active_max",
-    "active_min",
-    "idle_mean",
-    "idle_std",
-    "idle_max",
-    "idle_min",
+# -- REAL DATASET LOADERS ---------------------------------------------------
+
+NSL_KDD_COLS = [
+    "duration",
+    "protocol_type",
+    "service",
+    "flag",
+    "src_bytes",
+    "dst_bytes",
+    "land",
+    "wrong_fragment",
+    "urgent",
+    "hot",
+    "num_failed_logins",
+    "logged_in",
+    "num_compromised",
+    "root_shell",
+    "su_attempted",
+    "num_root",
+    "num_file_creations",
+    "num_shells",
+    "num_access_files",
+    "num_outbound_cmds",
+    "is_host_login",
+    "is_guest_login",
+    "count",
+    "srv_count",
+    "serror_rate",
+    "srv_serror_rate",
+    "rerror_rate",
+    "srv_rerror_rate",
+    "same_srv_rate",
+    "diff_srv_rate",
+    "srv_diff_host_rate",
+    "dst_host_count",
+    "dst_host_srv_count",
+    "dst_host_same_srv_rate",
+    "dst_host_diff_srv_rate",
+    "dst_host_same_src_port_rate",
+    "dst_host_srv_diff_host_rate",
+    "dst_host_serror_rate",
+    "dst_host_srv_serror_rate",
+    "dst_host_rerror_rate",
+    "dst_host_srv_rerror_rate",
+    "label",
+    "difficulty",
 ]
 
 
-def _clip_int(arr, min_v=None, max_v=None):
-    if min_v is not None:
-        arr = np.maximum(arr, min_v)
-    if max_v is not None:
-        arr = np.minimum(arr, max_v)
-    return np.rint(arr).astype(int)
+def load_nslkdd(path="datasets/nslkdd"):
+    print("  Loading NSL-KDD...")
+    train = pd.read_csv(f"{path}/KDDTrain+.txt", names=NSL_KDD_COLS)
+    test = pd.read_csv(f"{path}/KDDTest+.txt", names=NSL_KDD_COLS)
+    df = pd.concat([train, test], ignore_index=True)
+    df = df.drop(columns=["difficulty"], errors="ignore")
 
+    for col in ["protocol_type", "service", "flag"]:
+        df[col] = LabelEncoder().fit_transform(df[col].astype(str))
 
-def _norm(  # noqa: PLR0913
-    rng,
-    size,
-    mean,
-    std,
-    min_val: float = 0.0,
-    max_val: float | None = None,
-    as_int: bool = False,
-    clip_min: float | None = None,
-    clip_max: float | None = None,
-):
-    out = rng.normal(loc=mean, scale=std, size=size)
-    if as_int:
-        out = np.rint(out)
-    if clip_min is not None:
-        out = np.maximum(out, clip_min)
-    if clip_max is not None:
-        out = np.minimum(out, clip_max)
-    # ensure positive where it makes sense
-    if min_val is not None:
-        out = np.maximum(out, min_val)
-    return out
-
-
-def generate_synthetic_dataset(name: str, random_state: int = 42) -> pd.DataFrame:
-    """Generate synthetic dataset with FIXED feature set and labels."""
-
-    rng = np.random.default_rng(random_state)
-    n_normal = 40000
-    n_attack = 20000
-    # attack split
-    n_ddos = 10000
-    n_portscan = 10000
-
-    # --------- distributions ---------
-    normal_dist = {
-        "flow_duration": (50000, 20000),
-        "total_fwd_packets": (8, 4),
-        "total_bwd_packets": (6, 3),
-        "flow_bytes_per_sec": (15000, 5000),
-        "flow_pkts_per_sec": (120, 50),
-        "flow_iat_mean": (5000, 2000),
-        "fwd_iat_total": (40000, 15000),
-        "bwd_iat_total": (35000, 12000),
-        "syn_flag_count": (1, 0.3),
-        "max_packet_length": (1400, 200),
-        "init_win_bytes_forward": (65535, 15000),
-        "idle_mean": (200000, 80000),
-        "idle_std": (50000, 20000),
-        "idle_max": (400000, 100000),
-        "idle_min": (50000, 20000),
-        "active_mean": (50000, 20000),
-        "active_max": (90000, 25000),
-    }
-
-    ddos_dist = {
-        "flow_duration": (3000, 1500),
-        "total_fwd_packets": (250, 100),
-        "total_bwd_packets": (3, 2),
-        "flow_bytes_per_sec": (950000, 200000),
-        "flow_pkts_per_sec": (9500, 3000),
-        "flow_iat_mean": (60, 25),
-        "fwd_iat_total": (800, 300),
-        "bwd_iat_total": (300, 120),
-        "syn_flag_count": (47, 15),
-        "max_packet_length": (80, 15),
-        "init_win_bytes_forward": (512, 100),
-        "idle_mean": (1000, 400),
-        "idle_std": (300, 120),
-        "idle_max": (2000, 800),
-        "idle_min": (200, 80),
-        "active_mean": (2000, 800),
-        "active_max": (4000, 1500),
-    }
-
-    portscan_dist = {
-        "flow_pkts_per_sec": (600, 200),
-        "flow_bytes_per_sec": (3000, 1000),
-        "total_fwd_packets": (2, 1),
-        "total_bwd_packets": (1, 0.5),
-        "syn_flag_count": (12, 5),
-        "rst_flag_count": (8, 3),
-        "init_win_bytes_backward": (0, 1),
-    }
-
-    def _make_block(n, dist, label):
-        data = {feat: np.zeros(n, dtype=float) for feat in FEATURES}
-
-        # Fill common features with fallback normal distributions
-        for feat in FEATURES:
-            if feat in dist:
-                mean, std = dist[feat]
-            else:
-                # default values per traffic type
-                if label == 0:
-                    mean, std = 1000.0, 400.0
-                else:
-                    # for attacks -> shorter, bursty
-                    mean, std = 500.0, 300.0
-
-            # special handling for some features
-            if feat == "total_fwd_packets":
-                arr = _norm(
-                    rng,
-                    n,
-                    mean,
-                    std,
-                    as_int=True,
-                    clip_min=1,
-                    min_val=1,
-                )
-                # allow smaller for port scan and normal
-                if label == 1 and name == "nslkdd":
-                    arr = _clip_int(arr, 1)
-                data[feat] = arr
-                continue
-
-            if feat == "total_bwd_packets":
-                clip_min = 0
-                clip_max = 2 if label == 1 and dist is portscan_dist else None
-                arr = _norm(
-                    rng,
-                    n,
-                    mean,
-                    std,
-                    as_int=True,
-                    clip_min=clip_min,
-                    clip_max=clip_max,
-                    min_val=0,
-                )
-                data[feat] = arr
-                continue
-
-            if feat in ("syn_flag_count", "rst_flag_count", "fin_flag_count", "psh_flag_count", "ack_flag_count", "urg_flag_count"):
-                # flags are counts, small integers
-                if feat in dist:
-                    fmean, fstd = dist[feat]
-                else:
-                    # heuristics
-                    if label == 0:
-                        fmean, fstd = 0.4, 0.2
-                    else:
-                        fmean, fstd = 5.0, 3.0
-                arr = _norm(
-                    rng,
-                    n,
-                    fmean,
-                    fstd,
-                    as_int=True,
-                    clip_min=0,
-                )
-                data[feat] = arr
-                continue
-
-            if feat in ("fwd_psh_flags", "bwd_psh_flags", "fwd_urg_flags", "bwd_urg_flags"):
-                # binary-ish, but can be counts
-                mean, std = dist.get(feat, (0.2 if label == 0 else 0.6, 0.1))
-                arr = _norm(
-                    rng,
-                    n,
-                    mean,
-                    std,
-                    as_int=True,
-                    clip_min=0,
-                )
-                data[feat] = arr
-                continue
-
-            if feat in ("fwd_header_length", "bwd_header_length"):
-                mean_val = dist.get(feat, (60, 10))[0]
-                std_val = dist.get(feat, (10, 5))[1]
-                arr = _norm(rng, n, mean_val, std_val, min_val=20)
-                data[feat] = arr
-                continue
-
-            if feat == "flow_iat_std" or feat == "fwd_iat_std" or feat == "bwd_iat_std":
-                # variability of inter-arrival times
-                mean_val = dist.get(feat, (1000, 500))[0]
-                std_val = dist.get(feat, (1000, 500))[1]
-                data[feat] = _norm(rng, n, mean_val, std_val, min_val=0)
-                continue
-
-            if feat == "flow_iat_max" or feat == "flow_iat_min" or feat == "fwd_iat_max" or feat == "fwd_iat_min" or feat == "bwd_iat_max" or feat == "bwd_iat_min":
-                # boundaries for IAT
-                data[feat] = _norm(rng, n, mean * 1.1, std * 0.5, min_val=0)
-                continue
-
-            if feat == "total_length_fwd_pkts":
-                # relate to packet counts and max length
-                mean_val = dist.get(feat, (mean * 1000, std * 400))[0]
-                std_val = dist.get(feat, (mean * 1000, std * 400))[1]
-                data[feat] = _norm(rng, n, mean_val, std_val, min_val=0)
-                continue
-
-            if feat == "total_length_bwd_pkts":
-                mean_val = dist.get(feat, (mean * 800, std * 300))[0]
-                std_val = dist.get(feat, (mean * 800, std * 300))[1]
-                data[feat] = _norm(rng, n, mean_val, std_val, min_val=0)
-                continue
-
-            if feat == "fwd_pkt_len_max" or feat == "bwd_pkt_len_max":
-                mean_val = dist.get(feat, (mean * 0.8, std * 0.8))[0]
-                std_val = dist.get(feat, (mean * 0.25, std * 0.25))[1]
-                data[feat] = _norm(rng, n, mean_val, std_val, min_val=20)
-                continue
-
-            if feat == "fwd_pkt_len_min" or feat == "bwd_pkt_len_min":
-                mean_val = dist.get(feat, (mean * 0.2, std * 0.2))[0]
-                std_val = dist.get(feat, (std * 0.1, std * 0.1))[1]
-                data[feat] = _norm(rng, n, mean_val, std_val, min_val=10)
-                continue
-
-            if feat == "fwd_pkt_len_mean" or feat == "bwd_pkt_len_mean":
-                mean_val = dist.get(feat, (mean * 0.5, std * 0.3))[0]
-                std_val = dist.get(feat, (std * 0.2, std * 0.2))[1]
-                data[feat] = _norm(rng, n, mean_val, std_val, min_val=10)
-                continue
-
-            if feat == "fwd_pkt_len_std" or feat == "bwd_pkt_len_std":
-                mean_val = dist.get(feat, (std * 0.5, std * 0.3))[0]
-                std_val = dist.get(feat, (std * 0.2, std * 0.2))[1]
-                data[feat] = _norm(rng, n, mean_val, std_val, min_val=0)
-                continue
-
-            if feat == "fwd_packets_per_sec" or feat == "bwd_packets_per_sec":
-                # relate to flow_pkts_per_sec
-                base = dist.get("flow_pkts_per_sec", (100, 50))[0]
-                data[feat] = _norm(rng, n, base * 0.8, base * 0.25, min_val=0)
-                continue
-
-            if feat in ("min_packet_length", "packet_length_mean"):  # keep correlated with max
-                base = dist.get("max_packet_length", (1500, 300))[0] * 0.4
-                data[feat] = _norm(rng, n, base, base * 0.3, min_val=10)
-                continue
-
-            if feat == "packet_length_std":
-                data[feat] = _norm(rng, n, 200, 80, min_val=0)
-                continue
-
-            if feat == "packet_length_variance":
-                arr = data.get("packet_length_std", np.zeros(n))
-                data[feat] = np.square(arr)
-                continue
-
-            if feat == "down_up_ratio":
-                data[feat] = _norm(rng, n, 1.0 if label == 0 else 5.0, 1.0, min_val=0.01)
-                continue
-
-            if feat == "average_packet_size":
-                data[feat] = _norm(rng, n, 500, 200, min_val=20)
-                continue
-
-            if feat == "avg_fwd_segment_size" or feat == "avg_bwd_segment_size":
-                data[feat] = _norm(rng, n, 1000, 400, min_val=20)
-                continue
-
-            if feat == "init_win_bytes_backward":
-                mean_val = dist.get(feat, (1000, 500))[0]
-                std_val = dist.get(feat, (500, 200))[1]
-                data[feat] = _norm(rng, n, mean_val, std_val, min_val=0)
-                continue
-
-            if feat == "act_data_pkt_fwd":
-                data[feat] = _norm(rng, n, 200, 80, min_val=0)
-                continue
-
-            if feat == "min_seg_size_forward":
-                data[feat] = _norm(rng, n, 200, 60, min_val=0)
-                continue
-
-            # fallback for any remaining feature
-            data[feat] = _norm(rng, n, mean, std, min_val=0)
-
-        df = pd.DataFrame(data)
-        df["label"] = label
-        return df
-
-    normal_df = _make_block(n_normal, normal_dist, label=0)
-    ddos_df = _make_block(n_ddos, ddos_dist, label=1)
-    portscan_df = _make_block(n_portscan, portscan_dist, label=1)
-
-    df = pd.concat([normal_df, ddos_df, portscan_df], ignore_index=True)
-    df = df.sample(frac=1, random_state=random_state).reset_index(drop=True)
+    df["label"] = (df["label"] != "normal").astype(int)
+    print(f"    Shape: {df.shape}, Attack rate: {df['label'].mean():.1%}")
     return df
 
 
-def run_pipeline(dataset_name: str):
+def load_ciciot(path="datasets/ciciot/CICIoT2023.csv"):
+    print("  Loading CICIoT2023...")
+    df = pd.read_csv(path, low_memory=False)
+
+    label_col = [c for c in df.columns if "label" in c.lower() or "class" in c.lower()][-1]
+    df["label"] = (df[label_col] != "BenignTraffic").astype(int)
+    df = df.drop(columns=[label_col], errors="ignore")
+
+    drop = [c for c in df.columns if any(x in c.lower() for x in ["ip", "mac", "time", "id"])]
+    df = df.drop(columns=drop, errors="ignore")
+
+    if len(df) > 80_000:
+        df = df.sample(80_000, random_state=42)
+        print("    Sampled to 80k rows")
+
+    print(f"    Shape: {df.shape}, Attack rate: {df['label'].mean():.1%}")
+    return df
+
+
+def load_unswnb15(path="datasets/unswnb15"):
+    print("  Loading UNSW-NB15...")
+    import glob
+
+    # Prefer canonical split files to avoid mixing alternate schemas.
+    data_files = [
+        f
+        for f in sorted(glob.glob(f"{path}/UNSW-NB15_*.csv"))
+        if "list_events" not in os.path.basename(f).lower()
+    ]
+    if not data_files:
+        files = glob.glob(f"{path}/*.csv")
+        data_files = [
+            f
+            for f in files
+            if "features" not in f.lower() and "gt" not in f.lower() and "list" not in f.lower()
+        ]
+
+    dfs = []
+    target_rows = 20_000
+    per_file = max(1, target_rows // max(1, len(data_files)))
+
+    for f in sorted(data_files):
+        try:
+            loaded_for_file = 0
+            for chunk in pd.read_csv(f, low_memory=False, header=None, chunksize=100_000):
+                remaining = per_file - loaded_for_file
+                if remaining <= 0:
+                    break
+
+                if len(chunk) > remaining:
+                    chunk = chunk.sample(remaining, random_state=42)
+
+                loaded_for_file += len(chunk)
+                dfs.append(chunk)
+
+                if loaded_for_file >= per_file:
+                    break
+
+            print(f"    Loaded {f}: {loaded_for_file} sampled rows")
+        except Exception as e:
+            print(f"    Skipping {f}: {e}")
+
+    if not dfs:
+        raise ValueError("No usable UNSW-NB15 CSV files were loaded")
+
+    df = pd.concat(dfs, ignore_index=True)
+
+    df.columns = [f"f{i}" for i in range(df.shape[1] - 1)] + ["label"]
+    df["label"] = pd.to_numeric(df["label"], errors="coerce").fillna(0).astype(int)
+
+    for col in df.select_dtypes(include="object").columns:
+        if col != "label":
+            df[col] = LabelEncoder().fit_transform(df[col].astype(str))
+
+    if len(df) > 80_000:
+        df = df.sample(80_000, random_state=42)
+
+    print(f"    Shape: {df.shape}, Attack rate: {df['label'].mean():.1%}")
+    return df
+
+
+def load_cicids2017(path="datasets/cicids2017"):
+    print("  Loading CIC-IDS2017...")
+    import glob
+
+    files = glob.glob(f"{path}/*.csv")
+
+    dfs = []
+    target_rows = 20_000
+    per_file = max(1, target_rows // max(1, len(files)))
+
+    for f in sorted(files):
+        try:
+            attacks_needed = max(1, per_file // 3)
+            benign_needed = per_file - attacks_needed
+            sampled_parts = []
+
+            for chunk in pd.read_csv(f, low_memory=False, chunksize=50_000):
+                label_candidates = [c for c in chunk.columns if "label" in c.lower()]
+                if not label_candidates:
+                    continue
+
+                label_col = label_candidates[0]
+                labels = chunk[label_col].astype(str).str.strip().str.upper()
+
+                if attacks_needed > 0:
+                    atk = chunk[labels != "BENIGN"]
+                    if not atk.empty:
+                        take = min(attacks_needed, len(atk))
+                        sampled_parts.append(atk.sample(take, random_state=42))
+                        attacks_needed -= take
+
+                if benign_needed > 0:
+                    ben = chunk[labels == "BENIGN"]
+                    if not ben.empty:
+                        take = min(benign_needed, len(ben))
+                        sampled_parts.append(ben.sample(take, random_state=42))
+                        benign_needed -= take
+
+                if attacks_needed <= 0 and benign_needed <= 0:
+                    break
+
+            if not sampled_parts:
+                print(f"    Skipping {f}: no usable rows")
+                continue
+
+            chunk = pd.concat(sampled_parts, ignore_index=True)
+            label_col = [c for c in chunk.columns if "label" in c.lower()][0]
+            chunk["label"] = (chunk[label_col].astype(str).str.strip().str.upper() != "BENIGN").astype(int)
+            chunk = chunk.drop(columns=[label_col])
+
+            chunk.columns = chunk.columns.astype(str).str.strip().str.lower().str.replace(" ", "_")
+
+            for col in chunk.select_dtypes(include="object").columns:
+                chunk[col] = LabelEncoder().fit_transform(chunk[col].astype(str))
+
+            dfs.append(chunk)
+            print(f"    Loaded {f}: {len(chunk)} sampled rows")
+        except Exception as e:
+            print(f"    Skipping {f}: {e}")
+
+    if not dfs:
+        raise ValueError("No usable CIC-IDS2017 CSV files were loaded")
+
+    df = pd.concat(dfs, ignore_index=True)
+
+    df = df.replace([np.inf, -np.inf], np.nan)
+    df = df.dropna(thresh=len(df) * 0.5, axis=1)
+
+    if len(df) > 80_000:
+        df = df.sample(80_000, random_state=42)
+
+    print(f"    Shape: {df.shape}, Attack rate: {df['label'].mean():.1%}")
+    return df
+
+
+def run_pipeline(dataset_name: str, df: pd.DataFrame):
     artifact_dir = Path("backend") / "artifacts"
     artifact_dir.mkdir(parents=True, exist_ok=True)
 
-    df = generate_synthetic_dataset(dataset_name, random_state=42)
-    X = df[FEATURES].copy()
-    y = df["label"].copy()
+    if "label" not in df.columns:
+        raise ValueError("Dataset must contain a label column")
+
+    X = df.drop(columns=["label"]).copy()
+    y = pd.to_numeric(df["label"], errors="coerce").fillna(0).astype(int)
+
+    if len(X) < 10:
+        raise ValueError(f"Not enough rows to train: {len(X)}")
+    if y.nunique() < 2:
+        raise ValueError("Training labels contain only one class")
+
+    for col in X.columns:
+        X[col] = pd.to_numeric(X[col], errors="coerce")
 
     # sanitize
     X = X.replace([np.inf, -np.inf], np.nan)
     X = X.fillna(X.median())
 
-    mi_func = partial(
-        mutual_info_classif,
-        n_neighbors=3,
-        random_state=42,
-        n_jobs=1,
-    )
-    selector = SelectKBest(mi_func, k=20)
-
-    # Fit selector on a sample to keep computation tractable while still using mutual_info
-    rng = np.random.default_rng(42)
-    sample_n = min(20000, len(X))
-    sample_idx = rng.choice(len(X), size=sample_n, replace=False)
-    X_sample = X.iloc[sample_idx]
-    y_sample = y.iloc[sample_idx]
-
-    selector.fit(X_sample.to_numpy(), y_sample.to_numpy())
+    # Sample max 15k rows for MI computation to avoid hanging
+    mi_sample = min(15000, len(X))
+    idx = np.random.choice(len(X), mi_sample, replace=False)
+    selector = SelectKBest(mutual_info_classif, k=min(20, X.shape[1]))
+    selector.fit(X[idx].to_numpy(), y.iloc[idx].to_numpy())
     X_sel = selector.transform(X.to_numpy())
-    selected_features = [FEATURES[i] for i in selector.get_support(indices=True)]
+    selected_features = [X.columns[i] for i in selector.get_support(indices=True)]
 
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X_sel)
@@ -428,9 +286,9 @@ def run_pipeline(dataset_name: str):
         "random_forest": RandomForestClassifier(
             n_estimators=100, max_depth=15, n_jobs=-1, random_state=42
         ),
-        "gradient_boosting": GradientBoostingClassifier(
-            n_estimators=100, learning_rate=0.1, max_depth=5, random_state=42
-        ),
+        # "gradient_boosting": GradientBoostingClassifier(
+        #     n_estimators=100, learning_rate=0.1, max_depth=5, random_state=42
+        # ),
         "decision_tree": DecisionTreeClassifier(max_depth=12, random_state=42),
     }
 
@@ -488,11 +346,34 @@ def run_pipeline(dataset_name: str):
 
 
 if __name__ == "__main__":
-    for ds in ["ciciot", "nslkdd"]:
-        print(f"\nTraining {ds}...")
+    DATASETS = {
+        "nslkdd": ("datasets/nslkdd", load_nslkdd),
+        "ciciot": ("datasets/ciciot/CICIoT2023.csv", load_ciciot),
+        "unswnb15": ("datasets/unswnb15", load_unswnb15),
+        "cicids2017": ("datasets/cicids2017", load_cicids2017),
+    }
+
+    for name, (path, loader) in DATASETS.items():
+        if not os.path.exists(path):
+            print(f"\nSkipping {name} - path not found: {path}")
+            print(f"  Download and place files at: {path}")
+            continue
+
+        print(f"\n{'=' * 50}")
+        print(f"Training: {name.upper()}")
+        print(f"{'=' * 50}")
         try:
-            run_pipeline(ds)
+            df = loader(path)
+            run_pipeline(name, df)
         except Exception as e:
-            print(f"Error during training {ds}: {e}")
-            raise
-    print("\nTraining complete. Artifacts in backend/artifacts/")
+            print(f"  ERROR on {name}: {e}")
+            import traceback
+
+            traceback.print_exc()
+
+    print("\n=== ALL TRAINING COMPLETE ===")
+    print("Artifacts in backend/artifacts/")
+    print("\nLoaded datasets:")
+    for f in os.listdir("backend/artifacts"):
+        if f.endswith("_meta.json"):
+            print(f"  [ok] {f.replace('_meta.json', '')}")

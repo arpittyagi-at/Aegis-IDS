@@ -18,6 +18,7 @@ from backend.data.database import init_db, insert, recent_alerts, stats
 from backend.ml.explainer import explain_prediction
 from backend.ml.generator import TrafficGenerator
 from backend.ml.predictor import Predictor
+from backend.ml.dataset_reader import DatasetReader
 
 app = FastAPI(title="AEGIS IDS API", version="1.0.0")
 
@@ -32,7 +33,9 @@ app.add_middleware(
 predictors: dict = {}
 active_dataset: str = "ciciot"
 traffic_mode: str = "normal"
+data_source: str = "generated"  # "generated" or "real"
 generator = TrafficGenerator()
+dataset_readers: dict = {}  # For real dataset playback
 
 
 class PredictRequest(BaseModel):
@@ -45,14 +48,25 @@ class ModeRequest(BaseModel):
     dataset: Optional[str] = "ciciot"
 
 
+class DataSourceRequest(BaseModel):
+    source: str  # "generated" or "real"
+
+
 @app.on_event("startup")
 def startup_event():
     init_db()
 
-    for ds in ["ciciot", "nslkdd"]:
+    # Load all 4 datasets
+    for ds in ["ciciot", "nslkdd", "unswnb15", "cicids2017"]:
         try:
             predictors[ds] = Predictor(ds)
             print(f"Loaded {ds}")
+            # Initialize dataset reader for streaming
+            try:
+                dataset_readers[ds] = DatasetReader(ds)
+                print(f"  Dataset reader ready for {ds}")
+            except Exception as e:
+                print(f"  Could not initialize dataset reader for {ds}: {e}")
         except Exception as e:
             print(f"Could not load {ds}: {e}")
 
@@ -153,13 +167,40 @@ def set_mode(req: ModeRequest):
     return {"mode": traffic_mode, "dataset": active_dataset}
 
 
+@app.post("/data-source")
+def set_data_source(req: DataSourceRequest):
+    global data_source
+    if req.source not in ["generated", "real"]:
+        raise HTTPException(status_code=400, detail="Source must be 'generated' or 'real'")
+    data_source = req.source
+    return {"data_source": data_source, "mode": traffic_mode, "dataset": active_dataset}
+
+
+@app.get("/data-source")
+def get_data_source():
+    return {"data_source": data_source, "mode": traffic_mode, "dataset": active_dataset}
+
+
 @app.websocket("/stream")
 async def websocket_stream(ws: WebSocket):
     await ws.accept()
     try:
         while True:
             try:
-                sample = generator.next_sample(traffic_mode)
+                # Get sample based on data source
+                if data_source == "generated":
+                    sample = generator.next_sample(traffic_mode)
+                else:  # data_source == "real"
+                    reader = dataset_readers.get(active_dataset)
+                    if not reader:
+                        await asyncio.sleep(0.5)
+                        continue
+                    sample = reader.next_sample()
+                
+                if not sample:
+                    await asyncio.sleep(0.5)
+                    continue
+                
                 predictor = predictors.get(active_dataset)
                 if not predictor:
                     await asyncio.sleep(0.5)
@@ -178,7 +219,7 @@ async def websocket_stream(ws: WebSocket):
                 insert(record)
 
                 payload = {
-                    "timestamp": float(record["timestamp"]),
+                    "timestamp": int(record["timestamp"] * 1000),  # Convert to milliseconds for JS
                     "is_attack": bool(result["is_attack"]),
                     "probability": float(result["probability"]),
                     "threshold": float(result["threshold"]),
@@ -186,8 +227,9 @@ async def websocket_stream(ws: WebSocket):
                     "dataset": str(result["dataset"]),
                     "latency_ms": float(result["latency_ms"]),
                     "shap_vals": shap_vals,
-                    "mode": traffic_mode,
-                    "pps": int(generator.pps(traffic_mode)),
+                    "mode": traffic_mode if data_source == "generated" else "replay",
+                    "data_source": data_source,
+                    "pps": int(generator.pps(traffic_mode)) if data_source == "generated" else 20,
                 }
                 await ws.send_text(json.dumps(payload))
             except WebSocketDisconnect:

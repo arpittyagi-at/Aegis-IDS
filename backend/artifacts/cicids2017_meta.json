@@ -1,0 +1,56 @@
+{
+  "dataset": "cicids2017",
+  "selected_features": [
+    "destination_port",
+    "flow_duration",
+    "total_length_of_fwd_packets",
+    "total_length_of_bwd_packets",
+    "fwd_packet_length_max",
+    "bwd_packet_length_max",
+    "bwd_packet_length_mean",
+    "flow_bytes/s",
+    "flow_iat_max",
+    "bwd_packets/s",
+    "max_packet_length",
+    "packet_length_mean",
+    "packet_length_std",
+    "packet_length_variance",
+    "average_packet_size",
+    "avg_bwd_segment_size",
+    "subflow_fwd_bytes",
+    "subflow_bwd_bytes",
+    "init_win_bytes_forward",
+    "init_win_bytes_backward"
+  ],
+  "n_features": 20,
+  "best_model": "gradient_boosting",
+  "metrics": [
+    {
+      "model": "random_forest",
+      "accuracy": 99.78,
+      "f1": 99.45,
+      "precision": 99.61,
+      "recall": 99.3,
+      "auc": 99.99,
+      "fpr": 0.1
+    },
+    {
+      "model": "gradient_boosting",
+      "accuracy": 99.79,
+      "f1": 99.46,
+      "precision": 99.66,
+      "recall": 99.26,
+      "auc": 99.99,
+      "fpr": 0.08
+    },
+    {
+      "model": "decision_tree",
+      "accuracy": 99.7,
+      "f1": 99.23,
+      "precision": 99.64,
+      "recall": 98.82,
+      "auc": 99.88,
+      "fpr": 0.09
+    }
+  ]
+}
