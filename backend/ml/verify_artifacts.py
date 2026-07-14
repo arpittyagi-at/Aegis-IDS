@@ -6,7 +6,7 @@ import numpy as np
 
 artifacts = "backend/artifacts"
 
-for ds in ["ciciot", "nslkdd"]:
+for ds in ["ciciot", "nslkdd", "unswnb15", "cicids2017"]:
     print(f"\nChecking {ds}...")
 
     # Check files exist

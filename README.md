@@ -10,15 +10,15 @@
 <p><em>Detecting What Others Miss. Explaining What Others Hide.</em></p>
 
 <p>
-  <img src="https://img.shields.io/badge/Python-3.14-blue?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.14"/>
+  <img src="https://img.shields.io/badge/Python-3.11-blue?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.11"/>
   <img src="https://img.shields.io/badge/scikit--learn-orange?style=for-the-badge&logo=scikitlearn&logoColor=white" alt="scikit-learn"/>
   <img src="https://img.shields.io/badge/FastAPI-teal?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI"/>
   <img src="https://img.shields.io/badge/React-cyan?style=for-the-badge&logo=react&logoColor=111827" alt="React"/>
   <img src="https://img.shields.io/badge/Docker-blue?style=for-the-badge&logo=docker&logoColor=white" alt="Docker"/>
   <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License MIT"/>
-  <img src="https://img.shields.io/github/stars/YOUR_USERNAME/aegis-ids?style=for-the-badge&color=yellow" alt="Stars"/>
-  <img src="https://img.shields.io/github/forks/YOUR_USERNAME/aegis-ids?style=for-the-badge&color=blue" alt="Forks"/>
-  <img src="https://img.shields.io/github/last-commit/YOUR_USERNAME/aegis-ids?style=for-the-badge&color=brightgreen" alt="Last Commit"/>
+  <img src="https://img.shields.io/github/stars/arpittyagi-at/Aegis-IDS?style=for-the-badge&color=yellow" alt="Stars"/>
+  <img src="https://img.shields.io/github/forks/arpittyagi-at/Aegis-IDS?style=for-the-badge&color=blue" alt="Forks"/>
+  <img src="https://img.shields.io/github/last-commit/arpittyagi-at/Aegis-IDS?style=for-the-badge&color=brightgreen" alt="Last Commit"/>
   <img src="https://img.shields.io/badge/Status-Active-brightgreen?style=for-the-badge" alt="Status Active"/>
   <img src="https://img.shields.io/badge/PRs-Welcome-brightgreen?style=for-the-badge" alt="PRs Welcome"/>
   <img src="https://img.shields.io/badge/Made%20with%20Love-India-red?style=for-the-badge" alt="Made with Love in India"/>
@@ -71,7 +71,7 @@ This is built as a deployable SOC dashboard, not only an academic notebook. Run 
 <td>
 
 - Random Forest (100 trees)
-- 99.51% F1-score
+- 99.51% peak accuracy
 - 0.58% False Positive Rate
 - Sub-2ms inference
 - 4 datasets validated
@@ -147,7 +147,7 @@ This is built as a deployable SOC dashboard, not only an academic notebook. Run 
 
 **Machine Learning**
 <br/>
-<img src="https://img.shields.io/badge/Python-3.14-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python"/>
+<img src="https://img.shields.io/badge/Python-3.11-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python"/>
 <img src="https://img.shields.io/badge/NumPy-013243?style=flat-square&logo=numpy&logoColor=white" alt="NumPy"/>
 <img src="https://img.shields.io/badge/Pandas-150458?style=flat-square&logo=pandas&logoColor=white" alt="Pandas"/>
 <img src="https://img.shields.io/badge/scikit--learn-F7931E?style=flat-square&logo=scikitlearn&logoColor=white" alt="scikit-learn"/>
@@ -218,8 +218,8 @@ aegis-ids/
 ### Option A - Docker Recommended
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/aegis-ids
-cd aegis-ids
+git clone https://github.com/arpittyagi-at/Aegis-IDS
+cd Aegis-IDS
 python -m backend.ml.train     # Train models first
 docker-compose up --build      # Launch everything
 # Open http://localhost:3000
@@ -228,8 +228,8 @@ docker-compose up --build      # Launch everything
 ### Option B - Manual Setup
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/aegis-ids
-cd aegis-ids
+git clone https://github.com/arpittyagi-at/Aegis-IDS
+cd Aegis-IDS
 python -m venv venv
 ```
 
@@ -273,8 +273,8 @@ npm start
 ### Option C - Windows Specific
 
 ```bat
-git clone https://github.com/YOUR_USERNAME/aegis-ids
-cd aegis-ids
+git clone https://github.com/arpittyagi-at/Aegis-IDS
+cd Aegis-IDS
 python -m venv venv
 venv\Scripts\activate.bat
 pip install -r requirements.txt
@@ -297,7 +297,7 @@ Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
 | UNSW-NB15 | ~100 MB | [research.unsw.edu.au/projects/unsw-nb15-dataset](https://research.unsw.edu.au/projects/unsw-nb15-dataset) | `datasets/unswnb15/` |
 | CIC-IDS2017 | ~500 MB | [unb.ca/cic/datasets/ids-2017.html](https://www.unb.ca/cic/datasets/ids-2017.html) | `datasets/cicids2017/` |
 
-If datasets are not downloaded, the training script automatically generates synthetic data matching published statistical distributions.
+If datasets are not downloaded, the bundled demo artifacts still power the dashboard. Download the datasets before retraining models from scratch.
 
 ## 🔌 API Reference
 
@@ -396,7 +396,7 @@ If you use AEGIS in research, cite:
   title  = {AEGIS: An Adaptive Explainable Generalized Intrusion Detection System},
   year   = {2025},
   institution = {SRM Institute of Science and Technology},
-  url    = {https://github.com/YOUR_USERNAME/aegis-ids}
+  url    = {https://github.com/arpittyagi-at/Aegis-IDS}
 }
 ```
 
@@ -440,7 +440,7 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE) for detai
 
 <div align="center">
 <br/>
-<p>Built with ❤️ by <a href="https://github.com/YOUR_USERNAME">Arpit Tyagi</a></p>
+<p>Built with ❤️ by <a href="https://github.com/arpittyagi-at">Arpit Tyagi</a></p>
 <p>SRM Institute of Science and Technology | B.Tech ECE | 2025</p>
 <br/>
 <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&size=14&pause=1000&color=00BCD4&center=true&vCenter=true&width=500&lines=AEGIS%3A+Detecting+What+Others+Miss.;Explaining+What+Others+Hide." alt="Footer" />

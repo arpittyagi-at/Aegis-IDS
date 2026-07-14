@@ -20,11 +20,14 @@ class DatasetReader:
         
         try:
             if self.dataset_name == "ciciot":
-                path = base_path / "ciciot" / "CICIoT2023.csv"
-                if not path.exists():
+                files = sorted((base_path / "ciciot").glob("**/*.csv"))
+                if not files:
                     self.df = pd.DataFrame()
                     return
-                self.df = pd.read_csv(path, nrows=10000)  # Stream chunk
+                self.df = pd.concat(
+                    [pd.read_csv(path, nrows=4000) for path in files[:3]],
+                    ignore_index=True,
+                )
                 # Drop non-numeric columns
                 for col in ["Dst IP", "Src IP", "Timestamp"]:
                     if col in self.df.columns:
@@ -75,11 +78,9 @@ class DatasetReader:
             elif self.dataset_name == "cicids2017":
                 # Load CIC-IDS 2017 files
                 dfs = []
-                for i in range(1, 9):
-                    path = base_path / "cicids2017" / f"day{i}.csv"
-                    if path.exists():
-                        df = pd.read_csv(path, nrows=5000)  # Limit per file
-                        dfs.append(df)
+                for path in sorted((base_path / "cicids2017").glob("*.csv")):
+                    df = pd.read_csv(path, nrows=5000)  # Limit per file
+                    dfs.append(df)
                 self.df = pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame()
                 # Convert to numeric
                 self.df = self.df.apply(pd.to_numeric, errors="coerce").fillna(0)

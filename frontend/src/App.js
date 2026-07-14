@@ -15,6 +15,9 @@ import {
 } from "recharts";
 import axios from "axios";
 
+const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:8000";
+const WS_URL = `${API_BASE.replace(/^http/, "ws")}/stream`;
+
 function App() {
   const [stats, setStats] = useState(null);
   const [alerts, setAlerts] = useState([]);
@@ -22,14 +25,11 @@ function App() {
   const [connected, setConnected] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [mode, setMode] = useState("online");
+  const [mode, setMode] = useState("normal");
   const [dataset, setDataset] = useState("ciciot");
   const [dataSource, setDataSource] = useState("generated");  // "generated" or "real"
   const [metrics, setMetrics] = useState(null);
   const [selectedAlert, setSelectedAlert] = useState(null);
-
-  const API_BASE = "http://localhost:8000";
-  const WS_URL = "ws://localhost:8000/stream";
 
   // Fetch stats and data source on load
   useEffect(() => {
@@ -116,20 +116,19 @@ function App() {
 
   const handleModeChange = async (newMode) => {
     try {
-      await axios.post(`${API_BASE}/mode`, { mode: newMode });
+      await axios.post(`${API_BASE}/mode`, { mode: newMode, dataset });
       setMode(newMode);
     } catch (err) {
       setError("Failed to change mode");
     }
   };
 
-  const handleThresholdChange = async (value) => {
+  const handleDatasetChange = async (newDataset) => {
+    setDataset(newDataset);
     try {
-      await axios.post(`${API_BASE}/threshold`, {
-        threshold: parseFloat(value),
-      });
+      await axios.post(`${API_BASE}/mode`, { mode, dataset: newDataset });
     } catch (err) {
-      setError("Failed to update threshold");
+      setError("Failed to change dataset");
     }
   };
 
@@ -162,7 +161,7 @@ function App() {
       <div className="header">
         <h1>🛡️ AEGIS IDS Dashboard</h1>
         <p>
-          Adaptive Engagement Guard for Intrusion Detection with SHAP Explanations
+          Adaptive Explainable Generalized Intrusion Detection System with SHAP Explanations
         </p>
         <p style={{ fontSize: "12px", color: "#888", marginTop: "4px", letterSpacing: "0.05em" }}>
           Built by <span style={{ color: "#00d4ff", fontWeight: "bold" }}>Arpit Tyagi</span>
@@ -279,12 +278,12 @@ function App() {
                   {
                     name: "Normal",
                     value:
-                      (stats?.total_events || 0) - (stats?.alerts_raised || 0),
+                      (stats?.total_analyzed || 0) - (stats?.total_attacks || 0),
                     fill: "#00ff88",
                   },
                   {
                     name: "Anomaly",
-                    value: stats?.alerts_raised || 0,
+                    value: stats?.total_attacks || 0,
                     fill: "#ff6b6b",
                   },
                 ].map((entry, index) => (
@@ -512,7 +511,7 @@ function App() {
           <select
             id="dataset-select"
             value={dataset}
-            onChange={(e) => setDataset(e.target.value)}
+            onChange={(e) => handleDatasetChange(e.target.value)}
             style={{
               background: "rgba(0,0,0,0.4)",
               color: "#00d4ff",
@@ -527,6 +526,11 @@ function App() {
             <option value="unswnb15">UNSW-NB15 (Mixed)</option>
             <option value="cicids2017">CIC-IDS 2017 (Enterprise)</option>
           </select>
+          {metrics?.metrics?.length > 0 && (
+            <small style={{ color: "#cccccc", marginLeft: 12 }}>
+              Best: {metrics.metrics[0].model} | F1 {metrics.metrics[0].f1}%
+            </small>
+          )}
         </div>
 
         <button onClick={() => window.location.reload()} style={{ marginTop: "15px" }}>

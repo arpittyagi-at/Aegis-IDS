@@ -33,9 +33,6 @@ yarn-error.log*
 # Datasets
 datasets/
 
-# Model artifacts
-backend/artifacts/*.pkl
-
 # Database
 backend/data/alerts.db
 *.sqlite

@@ -35,7 +35,7 @@ The data layer supports four benchmark families:
 - UNSW-NB15
 - CIC-IDS2017
 
-Files are read from `datasets/`. If real datasets are unavailable, the training and demo flow can use generated traffic distributions for normal, DDoS, port scan, and mixed traffic.
+Files are read from `datasets/`. If real datasets are unavailable, the live demo can use generated traffic distributions for normal, DDoS, port scan, and mixed traffic. Download the datasets before retraining models from scratch.
 
 ### Model Layer
 

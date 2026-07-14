@@ -1,13 +1,17 @@
 import json
 import numpy as np
 import joblib
+import pandas as pd
 
-from backend.ml.train import generate_synthetic_dataset
+from backend.ml.generator import FEATURES, TrafficGenerator
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 
 print('running inspect_model')
-print('generating dataset...')
-df = generate_synthetic_dataset('ciciot', random_state=42)
+print('generating demo dataset...')
+generator = TrafficGenerator(seed=42)
+normal = [generator.next_sample("normal") | {"label": 0} for _ in range(500)]
+attack = [generator.next_sample("ddos") | {"label": 1} for _ in range(500)]
+df = pd.DataFrame(normal + attack, columns=[*FEATURES, "label"])
 print('dataset generated')
 
 # Use saved artifacts to avoid expensive mutual_info selection computations
